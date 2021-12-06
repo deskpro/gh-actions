@@ -1,0 +1,29 @@
+name: 'Upload release asset'
+description: 'Upload an asset to a github release'
+
+inputs:
+  release-id:
+    description: 'Github release id'
+    required: true
+  filename:
+    description: 'Filename of asset'
+    required: true
+  asset:
+    description: 'Path to the asset file to upload'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Attach deb package to release
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          await github.repos.uploadReleaseAsset({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            release_id: ${{ inputs.release-id }},
+            name: "${{ inputs.filename }}",
+            data: require('fs').readFileSync('${{ inputs.asset }}'),
+          });
