@@ -1,0 +1,81 @@
+name: 'Create github release'
+description: 'Create a new github release'
+
+inputs:
+  git-tag:
+    description: 'Git tag nme'
+    required: true
+
+  release-name:
+    description: 'Name of the release'
+    required: true
+
+  release-body:
+    description: 'Release body'
+    required: false
+    default: ''
+
+  is-pre-release:
+    description: 'If is pre-release'
+    required: false
+    default: ''
+
+outputs:
+  release-id:
+    description: 'The id of the release created'
+    value: ${{ steps.github-release.outputs.result }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create release
+      id: github-release
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ github.token }}
+        result-encoding: string
+        script: |
+          // Delete existing release
+          // Only *published* releases can be fetched by tag,
+          // so we have to iterate every release in every page!
+          let page = 1;
+          let found = false;
+          let releases = [];
+
+          do {
+            releases = await github.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              page: page++,
+            });
+
+            releases.data.some(async (release) => {
+              if (release.tag_name == "${{ inputs.git-tag }}") {
+                // Release found
+                console.log('Removing existing release for tag "${{ inputs.git-tag }}".');
+
+                await github.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: release.id
+                });
+
+                found = true;
+                return true;
+              }
+            });
+          } while (releases.data.length > 0 && !found);
+
+          // Create the release
+          console.log('Creating new release for tag "${{ inputs.git-tag }}".');
+          const release = await github.repos.createRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag_name: "${{ inputs.git-tag }}",
+            name: "${{ inputs.release-name }}",
+            body: "${{ inputs.release-body }}",
+            prerelease: ("${{ inputs.is-pre-release }}" == "true"),
+            draft: true,
+          });
+
+          return release.data.id;

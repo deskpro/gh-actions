@@ -1,0 +1,40 @@
+name: 'Create tag'
+description: 'Create a new git repository tag'
+
+inputs:
+  git-tag:
+    description: 'Git tag nme'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create tag
+      uses: actions/github-script@v3
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          try {
+            // Delete existing tag if found
+            await github.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "tags/${{ inputs.git-tag }}",
+            })
+
+            await github.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "tags/${{ inputs.git-tag }}",
+            });
+          } catch (e) {
+            // Catch not found exception
+          }
+
+          console.log('Creating new tag "${{ inputs.git-tag }}".');
+          github.git.createRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: "refs/tags/${{ inputs.git-tag }}",
+            sha: context.sha
+          });
