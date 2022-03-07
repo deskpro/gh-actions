@@ -1,0 +1,101 @@
+name: 'Poll e2e instance ready'
+description: 'Poll an e2e instance previously launched until its ready for use'
+
+inputs:
+  aws-instance-id:
+    description: 'The AWS instance ID of the instance previously launched'
+    required: true
+
+  aws-private-key:
+    description: 'The AWS private key for remote connecting to the instance'
+    required: true
+
+  username:
+    description: 'Username for remotely connecting to the instance over SSH'
+    required: true
+
+  server-name:
+    description: 'Name to assign server in the SSH config'
+    required: true
+
+outputs:
+  public-ip:
+    description: 'The launched instances public IP'
+    value: ${{ steps.instance-metadata.outputs.public-ip }}
+
+  private-ip:
+    description: 'The launched instances private IP'
+    value: ${{ steps.instance-metadata.outputs.private-ip }}
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: sh
+      name: Poll instance state til running
+      id: instance-metadata
+      run: |
+        counter=1
+        end_time=$(($(date +%s)+180))
+        while [ true ]; do
+          if [ "$(date +%s)" -gt "$end_time" ]; then
+            exit 1
+          fi
+        
+          aws ec2 describe-instances --instance-ids "${{ inputs.aws-instance-id }}" > instance_data
+          instance_status=$(cat instance_data | jq -r .Reservations[0].Instances[0].State.Name)
+          public_ip=$(cat instance_data | jq -r .Reservations[0].Instances[0].PublicIpAddress)
+          private_ip=$(cat instance_data | jq -r .Reservations[0].Instances[0].PrivateIpAddress)
+        
+          echo "Attempt: $counter, status: $instance_status, IP: $public_ip"
+        
+          if [ "$instance_status" = "running" ] && [ "$public_ip" != "" ]; then
+            break
+          fi
+        
+          sleep 1
+          counter=$((counter+1))
+        done
+        
+        echo "::set-output name=public-ip::${public_ip}"
+        echo "::set-output name=private-ip::${private_ip}"
+
+    - shell: sh
+      name: Set SSH client config
+      run: |
+        mkdir -p ~/.ssh
+        cat <<EOF | tee ~/.ssh/config
+          Host ${{ inputs.server-name }}
+              User ${{ inputs.username }}
+              Hostname ${{ steps.instance-metadata.outputs.public-ip }}
+              RequestTTY no
+              StrictHostKeyChecking no
+              ConnectTimeout 1
+              ConnectionAttempts 3
+        EOF
+        
+        chmod 600 ~/.ssh/config
+
+    - shell: sh
+      name: Poll instance til ready
+      run: |
+        echo "${{ inputs.aws-private-key }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        
+        cat << \EOF | /bin/sh
+          counter=1
+          end_time=$(($(date +%s)+180))
+        
+          while [ true ]; do
+            if [ "$(date +%s)" -gt "$end_time" ]; then
+              exit 1
+            fi
+        
+            echo "Attempt: $counter"
+            if ssh "${{ inputs.server-name }}" "test -e /var/lib/cloud/instance/boot-finished"; then
+              exit 0
+            fi
+        
+            sleep 1
+            counter=$((counter+1))
+          done
+        EOF

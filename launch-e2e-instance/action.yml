@@ -1,0 +1,54 @@
+name: 'Launch an e2e test server'
+description: 'Launch an e2e test server for running Cypress tests on'
+
+inputs:
+  aws-account-id:
+    description: 'AWS account ID'
+    required: true
+
+  aws-name-pattern:
+    description: 'AWS AMI name pattern'
+    required: true
+
+  aws-launch-template:
+    description: 'AWS launch template'
+    required: true
+
+  aws-name-tag:
+    description: 'Tag to assign the instance name'
+    required: true
+
+outputs:
+  instance-id:
+    description: 'Instance ID of new machine launched'
+    value: ${{ steps.launch-instance.outputs.instance-id }}
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: sh
+      name: Start EC2 instance for testing
+      id: launch-instance
+      run: |
+        image_id=$(aws ec2 describe-images \
+          --owners ${{ inputs.aws-account-id }} \
+          --filters "Name=name,Values=${{ inputs.aws-name-pattern }}" "Name=state,Values=available" \
+          --query "reverse(sort_by(Images, &CreationDate))[:1].ImageId" \
+          --output text \
+        )
+        echo "Running ${image_id}"
+        
+        if ! aws ec2 run-instances \
+            --launch-template LaunchTemplateId=${{ inputs.aws-launch-template }} \
+            --instance-market-options '{"MarketType":"spot"}' \
+            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${{ inputs.aws-name-tag }}}]" \
+            --image-id ${image_id} > run_instance; then
+        
+          aws ec2 run-instances \
+              --launch-template LaunchTemplateId=${{ inputs.aws-launch-template }} \
+              --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${{ inputs.aws-name-tag }}}]" \
+              --image-id ${image_id} > run_instance
+        fi
+        
+        instance_id=$(cat run_instance | jq -r ".Instances[0].InstanceId")
+        echo "::set-output name=instance-id::${instance_id}"
