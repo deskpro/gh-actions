@@ -13,7 +13,7 @@ inputs:
 
   working-directory:
     description: 'The working directory to run shell code in'
-    default: '$HOME'
+    default: '\$HOME'
     required: false
 
 runs:
