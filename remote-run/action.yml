@@ -7,9 +7,14 @@ inputs:
     required: true
 
   target:
-    description: The target server to run code on
+    description: 'The target server to run code on'
     default: 'server.test'
     required: true
+
+  working-directory:
+    description: 'The working directory to run shell code in'
+    default: '~'
+    required: false
 
 runs:
   using: 'composite'
@@ -19,5 +24,6 @@ runs:
       run: |
         ssh -T ${{ inputs.target }} << EOF
           set -ex
+          cd "${{ inputs.working-directory }}"
           ${{ inputs.run }}
         EOF
