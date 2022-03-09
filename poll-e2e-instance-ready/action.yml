@@ -16,6 +16,7 @@ inputs:
 
   server-name:
     description: 'Name to assign server in the SSH config'
+    default: 'server.test'
     required: true
 
 outputs:

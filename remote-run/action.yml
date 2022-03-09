@@ -1,0 +1,23 @@
+name: 'Remote run'
+description: 'Run shell code on a remote server using ssh'
+
+inputs:
+  run:
+    description: 'The remote shell code to run'
+    required: true
+
+  target:
+    description: The target server to run code on
+    default: 'server.test'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: sh
+      name: Execute remote shell
+      run: |
+        ssh -T ${{ inputs.target }} << EOF
+          set -ex
+          ${{ inputs.run }}
+        EOF
