@@ -1,6 +1,12 @@
 name: 'Release version parse'
 description: 'Extract release version data for the build'
 
+inputs:
+  ref:
+    description: 'The commit ref to build'
+    default: ${{ github.ref }}
+    required: false
+
 outputs:
   full-version:
     description: 'Full version, including pre-release tag and patch information'
@@ -53,7 +59,7 @@ runs:
             echo "::error ::Release tag name invalid"
           fi
         elif [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
-          FULL_VERSION=$(echo "${{ github.ref }}" | sed -E 's/^refs\/heads\/release\/(.*)$/\1/')
+          FULL_VERSION=$(echo "${{ inputs.ref }}" | sed -E 's/^refs\/heads\/release\/(.*)$/\1/')
 
           if [ "$FULL_VERSION" = "" ]; then
             echo "::error ::Branch name invalid"
