@@ -58,7 +58,7 @@ runs:
           if [ "$FULL_VERSION" = "" ]; then
             echo "::error ::Release tag name invalid"
           fi
-        elif [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
           FULL_VERSION=$(echo "${{ inputs.ref }}" | sed -E 's/^refs\/heads\/release\/(.*)$/\1/')
 
           if [ "$FULL_VERSION" = "" ]; then
