@@ -1,0 +1,65 @@
+name: 'Create SSH docker context'
+description: 'Create a new SSH based docker context'
+
+inputs:
+  context-name:
+    description: 'Context name to create'
+    required: true
+
+  private-key:
+    description: 'The SSH private key string'
+    required: true
+
+  user:
+    description: 'SSH username'
+    required: true
+
+  host:
+    description: 'SSH host'
+    required: true
+
+  port:
+    description: 'SSH port'
+    required: false
+    default: '22'
+
+  control-persist-time:
+    description: 'Time in seconds to hold the SSH connection open for'
+    required: false
+    default: '60'
+
+runs:
+  using: composite
+  steps:
+    - name: Create SSH directory
+      shell: bash
+      run: |
+        install -m 700 -d "$HOME/.ssh"
+
+    - name: Save the SSH key
+      shell: bash
+      run: |
+        install -T -m 600 /dev/null "$HOME/.ssh/docker-${{ inputs.context-name }}"        
+        echo "${{ inputs.ssh_key }}" > "$HOME/.ssh/docker-${{ inputs.context-name }}"
+
+    - name: Create SSH configuration entry
+      shell: bash
+      run: |
+        cat <<EOF | tee -a $HOME/.ssh/config >> /dev/null
+        Host ${{ inputs.context-name }}
+          User                    ${{ inputs.user }}
+          Hostname                ${{ inputs.host }}
+          Port                    ${{ inputs.port }}
+          IdentityFile            ~/.ssh/docker-${{ inputs.context-name }}
+          ControlMaster           auto
+          ControlPath             ~/.ssh/control-%C
+          ControlPersist          ${{ inputs.control-persist-time }}
+          StrictHostKeyChecking   no
+        EOF
+        
+    - name: Create the docker remote context
+      shell: bash
+      run: |
+        docker context create \
+          --docker "host=ssh://${{ inputs.context-name }}" \
+          "${{ inputs.context-name }}"
