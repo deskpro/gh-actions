@@ -40,7 +40,7 @@ runs:
       shell: bash
       run: |
         install -T -m 600 /dev/null "$HOME/.ssh/docker-${{ inputs.context-name }}"        
-        echo "${{ inputs.ssh_key }}" > "$HOME/.ssh/docker-${{ inputs.context-name }}"
+        echo "${{ inputs.private-key }}" > "$HOME/.ssh/docker-${{ inputs.context-name }}"
 
     - name: Create SSH configuration entry
       shell: bash
