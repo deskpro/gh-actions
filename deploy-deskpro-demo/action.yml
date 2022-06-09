@@ -1,0 +1,135 @@
+name: 'Deploy Deskpro'
+description: 'Deploy a Deskpro instance'
+
+inputs:
+  compose-project-path:
+    description: 'Path to a compose project (directory where yml file is located'
+    required: true
+
+  docker-repository:
+    description: 'Docker repository to deploy'
+    required: false
+    default: 'deskpro/deskpro-product-dev'
+
+  docker-tag:
+    description: 'Docker tag to deploy'
+    required: false
+    default: 'latest'
+
+  registry-url:
+    description: 'Docker registry url'
+    required: false
+    default: ''
+
+  registry-username:
+    description: 'Username for accessing the docker registry'
+    required: true
+
+  registry-password:
+    description: 'Password for accessing the docker registry'
+    required: true
+
+  license-key:
+    description: 'Deskpro license key'
+    required: false
+
+  artifact-suffix:
+    description: 'Suffix attached to artifacts created as part of deployment'
+    required: false
+
+  vhost-domain:
+    description: 'Domain from which to place the vhost deployment under'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate security credentials
+      id: security-credentials
+      shell: bash
+      run: |
+        echo "::set-output name=app-key::$(openssl rand -base64 32)"
+        echo "::set-output name=db-password::$(openssl rand -base64 32)"
+
+    - name: Parse repository metadata
+      id: metadata
+      shell: bash
+      run: |
+        repository="${{ github.repository }}"
+        repository_owner="${{ github.repository_owner }}"
+        repository_name=${repository#"${repository_owner}/"}
+        repository_name=$(echo "$repository_name" | tr '[:upper:]' '[:lower:]')
+        
+        event_name=""
+        pr_number=""
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          pr_number="${{ github.event.number }}"
+          event_name="pr-${pr_number}"
+        else
+          echo "::error title=Invalid event type::The event type ${{ github.event_name }} is not supported by this action"
+          exit 1
+        fi
+
+        suffix=""
+        if [ -n "${{ inputs.artifact-suffix }}" ]; then
+          suffix="_$(echo "${{ inputs.artifact-suffix }}" | tr '[:upper:]' '[:lower:]')"
+        fi
+        
+        echo "::set-output name=repository-name::${repository_name}"
+        echo "::set-output name=event-name::${event_name}"
+        echo "::set-output name=suffix::${suffix}"
+
+    - name: Generate Stack metadata
+      id: stack-metadata
+      shell: bash
+      run: |
+        stack_name="demo_${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
+        echo "::set-output name=stack-name::${stack_name}"
+        
+        fqdn="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
+        fqdn="${fqdn}.${{ inputs.vhost-domain }}"
+        echo "::set-output name=fqdn::${fqdn}"
+        echo "::set-output name=url::https://${fqdn}"
+        
+        mysql_hostname="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}_mysql"
+        echo "::set-output name=mysql-hostname::${mysql_hostname}"
+        
+        traefik_router_name="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
+        echo "::set-output name=traefik-router-name::${traefik_router_name}"
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        registry: ${{ inputs.registry-url }}
+        username: ${{ inputs.registry-username }}
+        password: ${{ inputs.registry-password }}
+
+    - name: Deploy stack to Docker Swarm
+      shell: sh
+      env:
+        IMAGE_TAG: ${{ inputs.docker-tag }}
+        LICENSE_KEY: ${{ inputs.license-key }}
+        DESKPRO_APP_KEY: ${{ steps.security-credentials.outputs.app-key }}
+        VIRTUAL_HOST: ${{ steps.stack-metadata.outputs.fqdn }}
+        MYSQL_HOSTNAME: ${{ steps.stack-metadata.outputs.mysql-hostname }}
+        TRAEFIK_ROUTER_SERVICE_NAME: ${{ steps.stack-metadata.outputs.traefik-router-name }}
+      working-directory: ${{ inputs.compose-project-path }}
+      run: |
+        docker-compose config | docker stack deploy \
+          -c - \
+          --with-registry-auth \
+          --resolve-image always \
+          --prune \
+          "${{ steps.stack-metadata.outputs.stack-name }}" 
+        
+        sleep 60
+
+    - name: Notify deployment
+      shell: bash
+      run: |
+        curl -sSfL \
+          -XPOST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: bearer ${{ github.token }}" \
+          -d "{\"body\":\"Build for commit ${{ github.event.pull_request.head.sha }} deployed to: ${{ steps.stack-metadata.outputs.url }}\\n\\nURLs:\\n${{ steps.stack-metadata.outputs.url }}/horizon-ui/app?USE_TEST_USER_CONTEXT=1\"}" \
+          "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments"

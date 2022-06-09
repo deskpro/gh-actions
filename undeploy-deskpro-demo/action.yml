@@ -1,0 +1,48 @@
+name: 'Undeploy Deskpro'
+description: 'Undeploy a previously deployed Deskpro instance'
+
+inputs:
+  artifact-suffix:
+    description: 'Suffix attached to artifacts created as part of deployment'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Parse repository metadata
+      id: metadata
+      shell: bash
+      run: |
+        repository="${{ github.repository }}"
+        repository_owner="${{ github.repository_owner }}"
+        repository_name=${repository#"${repository_owner}/"}
+        repository_name=$(echo "$repository_name" | tr '[:upper:]' '[:lower:]')
+        
+        event_name=""
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          pr_number="${{ github.event.number }}"
+          event_name="pr-${pr_number}"
+        else
+          failure
+        fi
+
+        suffix=""
+        if [ -n "${{ inputs.artifact-suffix }}" ]; then
+          suffix="_$(echo "${{ inputs.artifact-suffix }}" | tr '[:upper:]' '[:lower:]')"
+        fi
+        
+        echo "::set-output name=repository-name::${repository_name}"
+        echo "::set-output name=event-name::${event_name}"
+        echo "::set-output name=suffix::${suffix}"
+
+    - name: Generate Stack metadata
+      id: stack-metadata
+      shell: bash
+      run: |
+        stack_name="demo_${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
+        echo "::set-output name=stack-name::${stack_name}"
+
+    - name: Undeploy stack from Docker Swarm
+      shell: sh
+      run: |
+        docker stack ls --format {{.Name}} | grep "^${{ steps.stack-metadata.outputs.stack-name }}$" | xargs -r docker stack rm 
