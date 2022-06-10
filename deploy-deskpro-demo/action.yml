@@ -41,6 +41,11 @@ inputs:
     description: 'Domain from which to place the vhost deployment under'
     required: true
 
+outputs:
+  swarm-stack-name:
+    description: 'Swarm stack name'
+    value: ${{ steps.stack-metadata.outputs.stack-name }}
+
 runs:
   using: 'composite'
   steps:
