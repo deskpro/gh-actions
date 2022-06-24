@@ -99,12 +99,12 @@ runs:
         stack_name="demo_${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
         echo "::set-output name=stack-name::${stack_name}"
         
-        fqdn="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
+        fqdn="${{ steps.metadata.outputs.repository-name }}-${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
         fqdn="${fqdn}.${{ inputs.vhost-domain }}"
         echo "::set-output name=fqdn::${fqdn}"
         echo "::set-output name=url::https://${fqdn}"
         
-        mysql_hostname="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}_mysql"
+        mysql_hostname="${{ steps.metadata.outputs.repository-name }}-${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}-mysql"
         echo "::set-output name=mysql-hostname::${mysql_hostname}"
         
         traefik_router_name="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
