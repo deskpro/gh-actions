@@ -6,10 +6,13 @@ inputs:
     description: 'Path to a compose project (directory where yml file is located'
     required: true
 
-  docker-repository:
-    description: 'Docker repository to deploy'
-    required: false
-    default: 'deskpro/deskpro-product-dev'
+  deskpro-docker-repository:
+    description: 'Deskpro docker repository'
+    required: true
+
+  mysql-docker-repository:
+    description: 'MySQL docker repository'
+    required: true
 
   docker-tag:
     description: 'Docker tag to deploy'
@@ -126,6 +129,8 @@ runs:
         VIRTUAL_HOST: ${{ steps.stack-metadata.outputs.fqdn }}
         MYSQL_HOSTNAME: ${{ steps.stack-metadata.outputs.mysql-hostname }}
         TRAEFIK_ROUTER_SERVICE_NAME: ${{ steps.stack-metadata.outputs.traefik-router-name }}
+        DESKPRO_REPOSITORY: ${{ inputs.deskpro-docker-repository }}
+        MYSQL_REPOSITORY: ${{ inputs.mysql-docker-repository }}
       working-directory: ${{ inputs.compose-project-path }}
       run: |
         docker-compose config | docker stack deploy \
@@ -158,12 +163,22 @@ runs:
         docker exec "${{ steps.container.outputs.id }}" \
           mysql -A -D deskpro -e "UPDATE settings SET VALUE = '${{ steps.stack-metadata.outputs.url }}' WHERE NAME = 'core.deskpro_url';"
 
-    - name: Notify deployment
-      shell: bash
-      run: |
-        curl -sSfL \
-          -XPOST \
-          -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: bearer ${{ github.token }}" \
-          -d "{\"body\":\"Build for commit ${{ github.event.pull_request.head.sha }} deployed to: ${{ steps.stack-metadata.outputs.url }}\\n\\nURLs:\\n${{ steps.stack-metadata.outputs.url }}${{ inputs.url-resource }}\"}" \
-          "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments"
+    - name: Find notification
+      uses: peter-evans/find-comment@v2
+      id: fc
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: "Build for commit"
+
+    - name: Create or update deployment notification
+      uses: peter-evans/create-or-update-comment@v2
+      with:
+        comment-id: ${{ steps.fc.outputs.comment-id }}
+        issue-number: ${{ github.event.pull_request.number }}
+        edit-mode: replace
+        body: |
+          Build for commit ${{ github.event.pull_request.head.sha }} deployed to: ${{ steps.stack-metadata.outputs.url }}
+          
+          URLs:
+          ${{ steps.stack-metadata.outputs.url }}${{ inputs.url-resource }}
