@@ -157,6 +157,12 @@ runs:
         container_id="$(docker inspect --format '{{.Status.ContainerStatus.ContainerID}}' "${service_id}")"
         echo "::set-output name=id::${container_id}"
 
+    - name: Fill db from seed
+      shell: sh
+      run: |
+        docker exec "${{ steps.container.outputs.id }}" \
+          mysql -A -e "CALL deskpro._testRefillAllFromSeed()"
+
     - name: Update URL setting
       shell: sh
       run: |
