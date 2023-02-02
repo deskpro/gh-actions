@@ -64,8 +64,8 @@ runs:
       id: security-credentials
       shell: bash
       run: |
-        echo "::set-output name=app-key::$(openssl rand -base64 32)"
-        echo "::set-output name=db-password::$(openssl rand -base64 32)"
+        echo "app-key=$(openssl rand -base64 32)" >> $GITHUB_OUTPUT
+        echo "db-password=$(openssl rand -base64 32)" >> $GITHUB_OUTPUT
 
     - name: Parse repository metadata
       id: metadata
@@ -91,27 +91,27 @@ runs:
           suffix="_$(echo "${{ inputs.artifact-suffix }}" | tr '[:upper:]' '[:lower:]')"
         fi
         
-        echo "::set-output name=repository-name::${repository_name}"
-        echo "::set-output name=event-name::${event_name}"
-        echo "::set-output name=suffix::${suffix}"
+        echo "repository-name=${repository_name}" >> $GITHUB_OUTPUT
+        echo "event-name=${event_name}" >> $GITHUB_OUTPUT
+        echo "suffix=${suffix}" >> $GITHUB_OUTPUT
 
     - name: Generate Stack metadata
       id: stack-metadata
       shell: bash
       run: |
         stack_name="demo_${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
-        echo "::set-output name=stack-name::${stack_name}"
+        echo "stack-name=${stack_name}" >> $GITHUB_OUTPUT
         
         fqdn="${{ steps.metadata.outputs.repository-name }}-${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
         fqdn="${fqdn}.${{ inputs.vhost-domain }}"
-        echo "::set-output name=fqdn::${fqdn}"
-        echo "::set-output name=url::https://${fqdn}"
+        echo "fqdn=${fqdn}" >> $GITHUB_OUTPUT
+        echo "url=https://${fqdn}" >> $GITHUB_OUTPUT
         
         mysql_hostname="${{ steps.metadata.outputs.repository-name }}-${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}-mysql"
-        echo "::set-output name=mysql-hostname::${mysql_hostname}"
+        echo "mysql-hostname=${mysql_hostname}" >> $GITHUB_OUTPUT
         
         traefik_router_name="${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
-        echo "::set-output name=traefik-router-name::${traefik_router_name}"
+        echo "traefik-router-name=${traefik_router_name}" >> $GITHUB_OUTPUT
 
     - name: Login to DockerHub
       uses: docker/login-action@v1
@@ -155,7 +155,7 @@ runs:
         fi
         
         container_id="$(docker inspect --format '{{.Status.ContainerStatus.ContainerID}}' "${service_id}")"
-        echo "::set-output name=id::${container_id}"
+        echo "id=${container_id}" >> $GITHUB_OUTPUT
 
     - name: Fill db from seed
       shell: sh

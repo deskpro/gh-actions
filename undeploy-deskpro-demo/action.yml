@@ -31,16 +31,16 @@ runs:
           suffix="_$(echo "${{ inputs.artifact-suffix }}" | tr '[:upper:]' '[:lower:]')"
         fi
         
-        echo "::set-output name=repository-name::${repository_name}"
-        echo "::set-output name=event-name::${event_name}"
-        echo "::set-output name=suffix::${suffix}"
+        echo "repository-name=${repository_name}" >> $GITHUB_OUTPUT
+        echo "event-name=${event_name}" >> $GITHUB_OUTPUT
+        echo "suffix=${suffix}" >> $GITHUB_OUTPUT
 
     - name: Generate Stack metadata
       id: stack-metadata
       shell: bash
       run: |
         stack_name="demo_${{ steps.metadata.outputs.repository-name }}_${{ steps.metadata.outputs.event-name }}${{ steps.metadata.outputs.suffix }}"
-        echo "::set-output name=stack-name::${stack_name}"
+        echo "stack-name=${stack_name}" >> $GITHUB_OUTPUT
 
     - name: Undeploy stack from Docker Swarm
       shell: sh

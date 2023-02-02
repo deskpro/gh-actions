@@ -57,8 +57,8 @@ runs:
           counter=$((counter+1))
         done
         
-        echo "::set-output name=public-ip::${public_ip}"
-        echo "::set-output name=private-ip::${private_ip}"
+        echo "public-ip=${public_ip}" >> $GITHUB_OUTPUT
+        echo "private-ip=${private_ip}" >> $GITHUB_OUTPUT
 
     - shell: sh
       name: Set SSH client config

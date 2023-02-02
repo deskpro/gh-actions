@@ -76,17 +76,17 @@ runs:
             PACKAGE_VERSION="${PACKAGE_VERSION}~${PRE_RELEASE_TAG}"
           fi
 
-          echo "::set-output name=full-version::${FULL_VERSION}"
-          echo "::set-output name=version::${VERSION}"
-          echo "::set-output name=pre-release::${PRE_RELEASE_TAG}"
-          echo "::set-output name=is-beta::$(test "${PRE_RELEASE_TAG}" != "" && echo "true" || echo "false")"
-          echo "::set-output name=is-stable::$(test "${PRE_RELEASE_TAG}" = "" && echo "true" || echo "false")"
+          echo "full-version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "pre-release=${PRE_RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "is-beta=$(test "${PRE_RELEASE_TAG}" != "" && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "is-stable=$(test "${PRE_RELEASE_TAG}" = "" && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-          echo "::set-output name=branch::release/${FULL_VERSION}"
-          echo "::set-output name=git-tag::v${FULL_VERSION}"
-          echo "::set-output name=container-tag::${FULL_VERSION}"
+          echo "branch=release/${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "git-tag=v${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "container-tag=${FULL_VERSION}" >> $GITHUB_OUTPUT
 
-          echo "::set-output name=package-version::${PACKAGE_VERSION}"
+          echo "package-version=${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
 
-          echo "::set-output name=apt-distribution::$(test "${PRE_RELEASE_TAG}" = "" && echo "stable" || echo "beta")"
+          echo "apt-distribution=$(test "${PRE_RELEASE_TAG}" = "" && echo "stable" || echo "beta")" >> $GITHUB_OUTPUT
         fi

@@ -51,4 +51,4 @@ runs:
         fi
         
         instance_id=$(cat run_instance | jq -r ".Instances[0].InstanceId")
-        echo "::set-output name=instance-id::${instance_id}"
+        echo "instance-id=${instance_id}" >> $GITHUB_OUTPUT
