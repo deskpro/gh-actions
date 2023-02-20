@@ -30,7 +30,7 @@ runs:
   steps:
     - name: Create release
       id: github-release
-      uses: actions/github-script@v3
+      uses: actions/github-script@v6
       with:
         github-token: ${{ github.token }}
         result-encoding: string
@@ -43,7 +43,7 @@ runs:
           let releases = [];
 
           do {
-            releases = await github.repos.listReleases({
+            releases = await github.rest.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo,
               page: page++,
@@ -54,7 +54,7 @@ runs:
                 // Release found
                 console.log('Removing existing release for tag "${{ inputs.git-tag }}".');
 
-                await github.repos.deleteRelease({
+                await github.rest.repos.deleteRelease({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   release_id: release.id
@@ -68,7 +68,7 @@ runs:
 
           // Create the release
           console.log('Creating new release for tag "${{ inputs.git-tag }}".');
-          const release = await github.repos.createRelease({
+          const release = await github.rest.repos.createRelease({
             owner: context.repo.owner,
             repo: context.repo.repo,
             tag_name: "${{ inputs.git-tag }}",
