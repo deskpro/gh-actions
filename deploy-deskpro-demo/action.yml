@@ -120,6 +120,13 @@ runs:
         username: ${{ inputs.registry-username }}
         password: ${{ inputs.registry-password }}
 
+    - name: Install docker-compose v1
+      shell: sh
+      run: |
+        curl -fsSL https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64 -o docker-compose
+        chmod a+x docker-compose
+        sudo mv docker-compose /usr/local/bin/docker-compose
+
     - name: Deploy stack to Docker Swarm
       shell: sh
       env:
@@ -133,7 +140,7 @@ runs:
         MYSQL_REPOSITORY: ${{ inputs.mysql-docker-repository }}
       working-directory: ${{ inputs.compose-project-path }}
       run: |
-        docker compose config | docker stack deploy \
+        docker-compose config | docker stack deploy \
           -c - \
           --with-registry-auth \
           --resolve-image always \
