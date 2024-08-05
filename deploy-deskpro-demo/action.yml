@@ -133,7 +133,7 @@ runs:
         MYSQL_REPOSITORY: ${{ inputs.mysql-docker-repository }}
       working-directory: ${{ inputs.compose-project-path }}
       run: |
-        docker-compose config | docker stack deploy \
+        docker compose config | docker stack deploy \
           -c - \
           --with-registry-auth \
           --resolve-image always \
